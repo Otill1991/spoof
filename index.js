@@ -12,9 +12,6 @@ const quote = require('shell-quote').quote
 const zeroFill = require('zero-fill')
 const Winreg = require('winreg')
 
-// Path to Airport binary on macOS 10.7+
-const PATH_TO_AIRPORT = '/System/Library/PrivateFrameworks/Apple80211.framework/Resources/airport'
-
 // Windows registry key for interface MAC. Checked on Windows 7
 const WIN_REGISTRY_PATH = '\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}'
 
@@ -274,19 +271,14 @@ function setInterfaceMAC (device, mac, port) {
 
   if (process.platform === 'darwin') {
     if (isWirelessPort) {
-      // Turn on the device, assuming it's an airport device.
+      // Turn off the device, assuming it's an airport device, to disassociate from any
+      // networks and then turn it back on so we can change the MAC.
       try {
+        cp.execSync(quote(['networksetup', '-setairportpower', device, 'off']))
         cp.execSync(quote(['networksetup', '-setairportpower', device, 'on']))
       } catch (err) {
-        throw new Error('Unable to power on wifi device')
+        throw new Error('Unable to power cycle wifi device')
       }
-    }
-
-    // For some reason this seems to be required even when changing a non-airport device.
-    try {
-      cp.execSync(quote([PATH_TO_AIRPORT, '-z']))
-    } catch (err) {
-      throw new Error('Unable to disassociate from wifi networks')
     }
 
     // Change the MAC.
@@ -302,7 +294,7 @@ function setInterfaceMAC (device, mac, port) {
         cp.execSync(quote(['networksetup', '-setairportpower', device, 'off']))
         cp.execSync(quote(['networksetup', '-setairportpower', device, 'on']))
       } catch (err) {
-        throw new Error('Unable to set restart wifi device')
+        throw new Error('Unable to restart wifi device')
       }
     }
   } else if (process.platform === 'linux') {
